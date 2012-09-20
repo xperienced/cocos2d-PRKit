@@ -38,13 +38,14 @@
  Recalculate the texture coordinates. Called when setTexture is called.
 */
 -(void) calculateTextureCoordinates;
+-(void) updateColor;
 
 @end
 
 @implementation PRFilledPolygon
 
 @synthesize triangulator;
-
+@synthesize color, opacity;
 
 /**
  Returns an autoreleased polygon.  Default triangulator is used (Ratcliff's).
@@ -66,14 +67,15 @@
 
 -(id) initWithPoints:(NSArray *)polygonPoints andTexture:(CCTexture2D *)fillTexture usingTriangulator: (id<PRTriangulator>) polygonTriangulator {
     if( (self=[super init])) {
-		
+		opacity = 0xff;
+        color = ccc3(0xff, 0xff, 0xff);
+        
         self.triangulator = polygonTriangulator;
         
         [self setPoints:polygonPoints];
 		self.texture = fillTexture;
         
-        prog = [[CCShaderCache sharedShaderCache] programForKey:kCCShader_PositionTexture];;
-        
+        self.shaderProgram = [[CCShaderCache sharedShaderCache] programForKey:kCCShader_PositionTextureColor];
 	}
 	
 	return self;
@@ -84,6 +86,8 @@
         free(areaTrianglePoints);
     if (textureCoordinates)
         free(textureCoordinates);
+    if (verticesColor)
+        free(verticesColor);
     
     NSArray *triangulatedPoints = [triangulator triangulateVertices:points];
     
@@ -96,7 +100,10 @@
     }
     
     [self calculateTextureCoordinates];
-
+    
+    verticesColor = (ccColor4B *)malloc(sizeof(ccColor4B) * areaTrianglePointCount);
+    
+    [self updateColor];
 }
 
 -(void) calculateTextureCoordinates {
@@ -106,18 +113,20 @@
 }
 
 -(void) draw {
-    ccGLBindTexture2D( [self.texture name] );
+    CC_NODE_DRAW_SETUP();
+    
+    ccGLBindTexture2D( self.texture.name );
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
-    ccGLEnableVertexAttribs( kCCVertexAttribFlag_Position | kCCVertexAttribFlag_TexCoords );
+    ccGLBlendFunc( blendFunc.src, blendFunc.dst);
     
-    [prog use];
-    [prog setUniformForModelViewProjectionMatrix];
+    ccGLEnableVertexAttribs(kCCVertexAttribFlag_PosColorTex);
     
-    glVertexAttribPointer(kCCVertexAttrib_Position, 2, GL_FLOAT, GL_FALSE, sizeof(CGPoint), areaTrianglePoints);
-    glVertexAttribPointer(kCCVertexAttrib_TexCoords, 2, GL_FLOAT, GL_FALSE, sizeof(CGPoint), textureCoordinates);
+    glVertexAttribPointer(kCCVertexAttrib_Position, 2, GL_FLOAT, GL_FALSE, 0, areaTrianglePoints);
+    glVertexAttribPointer(kCCVertexAttrib_TexCoords, 2, GL_FLOAT, GL_FALSE, 0, textureCoordinates);
+    glVertexAttribPointer(kCCVertexAttrib_Color, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, verticesColor);
     
     glDrawArrays(GL_TRIANGLES, 0, areaTrianglePointCount);
 }
@@ -156,6 +165,27 @@
 	[self calculateTextureCoordinates];
 }
 
+- (void)setColor:(ccColor3B)aColor {
+    color = aColor;
+    
+    [self updateColor];
+}
+
+- (void)setOpacity:(GLubyte)anOpacity {
+    opacity = anOpacity;
+    
+    [self updateColor];
+}
+
+- (void)updateColor {
+    for (int i = 0; i < areaTrianglePointCount; i++) {
+        verticesColor[i].r = color.r;
+		verticesColor[i].g = color.g;
+		verticesColor[i].b = color.b;
+		verticesColor[i].a = opacity;
+    }
+}
+
 -(CCTexture2D *) texture {
 	return texture;
 }
@@ -163,9 +193,10 @@
 -(void) dealloc {
 	free(areaTrianglePoints);
 	free(textureCoordinates);
-	 texture = nil;
+    free(verticesColor);
+    
+    texture = nil;
     triangulator = nil;
-
 }
 
 @end

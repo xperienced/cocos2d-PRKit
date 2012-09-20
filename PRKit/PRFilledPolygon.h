@@ -33,7 +33,7 @@
 #import "cocos2d.h"
 #import "PRTriangulator.h"
 
-@interface PRFilledPolygon : CCNode {
+@interface PRFilledPolygon : CCNode<CCRGBAProtocol> {
 @private
 	int areaTrianglePointCount;
 
@@ -42,13 +42,18 @@
 	
 	CGPoint *areaTrianglePoints;
 	CGPoint *textureCoordinates;
-    CCGLProgram * prog;
     
     id<PRTriangulator> triangulator;
+    
+    ccColor3B color;
+    GLubyte opacity;
+    ccColor4B *verticesColor;
 }
 
 @property (nonatomic, strong) CCTexture2D *texture;
 @property (nonatomic, strong) id<PRTriangulator> triangulator;
+@property (nonatomic) GLubyte opacity;
+@property (nonatomic) ccColor3B color;
 
 /**
  Returns an autoreleased polygon.  Default triangulator is used (Ratcliff's).
