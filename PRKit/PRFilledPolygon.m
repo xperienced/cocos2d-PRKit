@@ -108,7 +108,8 @@
 
 -(void) calculateTextureCoordinates {
 	for (int j = 0; j < areaTrianglePointCount; j++) {
-		textureCoordinates[j] = ccpMult(areaTrianglePoints[j], 1.0f/texture.pixelsWide);
+        textureCoordinates[j] = ccpMult(areaTrianglePoints[j], 1.0f / texture.pixelsWide * CC_CONTENT_SCALE_FACTOR());
+        textureCoordinates[j].y = 1 - textureCoordinates[j].y;
 	}
 }
 
